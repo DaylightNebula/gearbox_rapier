@@ -5,9 +5,18 @@ use bimap::BiMap;
 use glam::{Quat, Vec3};
 use rapier3d::{control::KinematicCharacterController, na::{Isometry, Quaternion, Translation, UnitQuaternion, Vector3}, parry::utils::hashmap::HashMap, prelude::{CCDSolver, Collider, ColliderHandle, ColliderSet, DefaultBroadPhase, ImpulseJointSet, IntegrationParameters, IslandManager, MultibodyJointSet, NarrowPhase, PhysicsPipeline, QueryFilter, QueryPipeline, RigidBody, RigidBodyHandle, RigidBodySet, Shape}};
 
+/// Identifier used to look up an object's rapier rigidbody, collider, and/or
+/// character controller within a `PhysicsEngine`, independent of rapier's own
+/// handle types. Assigned to each `PhysicsObject` on creation.
 pub type PhysicsWorldID = u32;
+
+/// Source of the next `PhysicsWorldID` handed out to a new `PhysicsObject`.
 pub static NEXT_PHYSICS_WORLD_ID: AtomicU32 = AtomicU32::new(0);
 
+/// ECS resource wrapping a rapier physics world. Owns the rapier simulation
+/// state (rigidbodies, colliders, character controllers, and solver
+/// pipelines) and maps each object's `PhysicsWorldID` to its rapier handles
+/// and owning `EntityID`. Stepped once per tick by `update_engine_side`.
 #[allow(unused)]
 #[derive(Resource)]
 pub struct PhysicsEngine {
@@ -29,6 +38,10 @@ pub struct PhysicsEngine {
     pub(crate) ccd_solver: CCDSolver
 }
 
+/// Outcome of moving a kinematic character controller one tick, returned by
+/// `PhysicsEngine::move_character`. Holds the actual `translation` applied
+/// after collision resolution, whether the character `is_sliding` down a
+/// slope, and whether it `is_grounded`.
 pub(crate) struct MoveCharacterResult {
     pub(crate) translation: Vec3,
     pub(crate) is_sliding: bool,
@@ -64,16 +77,22 @@ impl PhysicsEngine {
     /// Get a mutable reference to the current gravity value
     pub fn gravity_mut(&mut self) -> &mut Vector3<f32> { &mut self.gravity }
 
+    /// Get a reference to the underlying rapier rigidbody set.
     pub fn rigid_body_set(&self) -> &RigidBodySet { &self.rigid_body_set }
 
+    /// Get a reference to the underlying rapier collider set.
     pub fn collider_set(&self) -> &ColliderSet { &self.collider_set }
 
+    /// Get the rapier rigidbody handle for the given `PhysicsWorldID`, if one exists.
     pub fn rigid_body_handle(&self, id: &PhysicsWorldID) -> Option<&RigidBodyHandle> { self.rigid_body_map.get_by_left(id) }
 
+    /// Get the rapier collider handle for the given `PhysicsWorldID`, if one exists.
     pub fn collider_handle(&self, id: &PhysicsWorldID) -> Option<&ColliderHandle> { self.collider_map.get_by_left(id) }
 
+    /// Get the `PhysicsWorldID` associated with an entity, if it has one.
     pub fn physics_id(&self, id: EntityID) -> Option<PhysicsWorldID> { self.entity_id_map.get_by_right(&id).copied() }
 
+    /// Get the `EntityID` that owns the given `PhysicsWorldID`, if any.
     pub fn entity_id(&self, id: PhysicsWorldID) -> Option<EntityID> { self.entity_id_map.get_by_left(&id).copied() }
 
     /// Ticks the internal physics solver.
@@ -309,6 +328,9 @@ impl PhysicsEngine {
     }
 }
 
+/// A snapshot of a rigidbody's transform and velocities read out of rapier
+/// during a physics tick, as produced by `PhysicsEngine::snapshot_by_rb_handle`
+/// and stored on `PhysicsObject::last_snapshot`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RigidBodySnapshot {
     pub translation: Vec3,

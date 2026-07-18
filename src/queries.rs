@@ -41,12 +41,19 @@ pub struct PhysicsQueryResult {
     pub entity_id: EntityID
 }
 
+/// A pending query submitted via `PhysicsQueries::create_query`, awaiting
+/// execution on the next `execute_queries` call. Holds the query's `id`, the
+/// `PhysicsQuery` to run, and any caller-supplied `data` to return alongside
+/// the results.
 struct PhysicsQueryInput {
     id: String,
     query: PhysicsQuery,
     data: Option<Box<dyn Any>>
 }
 
+/// The completed `results` of a query, kept in `PhysicsQueries::results`
+/// until consumed via `consume_query` or expired after 10 seconds based on
+/// `created_at`. Retains the `data` supplied when the query was created.
 struct PhysicsStoredResult {
     results: Vec<PhysicsQueryResult>,
     created_at: DateTime<Utc>,

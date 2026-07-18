@@ -7,6 +7,33 @@ use rapier3d::control::CharacterLength;
 
 use crate::{Collider, NEXT_PHYSICS_WORLD_ID, PhysicsWorldID, RigidBodySnapshot};
 
+/// Component that links an entity to a rigidbody/collider (and optionally a
+/// character controller, via `PhysicsCharacter`) inside a `PhysicsEngine`.
+/// Create with `fixed` or `movable`; the resulting collider, mass, and
+/// fixed/movable state can be changed later through the setters below, and
+/// forces/torques/impulses/velocity queued here are consumed and applied by
+/// `update_engine_side` on the next physics tick.
+///
+/// Fields:
+/// - `physics_id`: The `PhysicsWorldID` used to look this object up inside
+///   `PhysicsEngine`.
+/// - `last_snapshot`: The most recent `RigidBodySnapshot` read from rapier,
+///   if any.
+/// - `collider`: The current `Collider` shape.
+/// - `next_velocity`: A linear velocity queued to be applied on the next
+///   tick, if any.
+/// - `impulses` / `torque_impulses`: Queued one-shot linear/angular impulses
+///   to apply on the next tick.
+/// - `forces` / `torques`: Persistent linear/angular forces, keyed by an ID
+///   returned from `add_force`/`add_torque`, applied every tick until
+///   removed.
+/// - `force_idx`: Counter used to assign IDs to new forces and torques.
+/// - `refresh_rapier`: Set when the rapier rigidbody/collider/controller for
+///   this object needs to be rebuilt (e.g. after `set_collider`).
+/// - `using_empty_collider`: Set when `collider` resolves to no rapier shape,
+///   so no rigidbody/controller is created for it.
+/// - `mass`: The mass passed to rapier's collider builder.
+/// - `is_fixed`: Whether this object is a fixed (immovable) or dynamic rigidbody.
 #[derive(Component, Getters)]
 pub struct PhysicsObject {
     physics_id: PhysicsWorldID,
@@ -80,6 +107,7 @@ impl PhysicsObject {
         self.refresh_rapier_counterpart();
     }
 
+    /// Sets whether this object is a fixed (immovable) or dynamic rigidbody.
     pub fn set_fixed(&self, fixed: bool) {
         self.is_fixed.set(fixed);
         self.refresh_rapier_counterpart();
@@ -160,6 +188,13 @@ impl PhysicsObject {
     }
 }
 
+/// A length used to configure a `PhysicsCharacter`'s controller (collider
+/// expansion, snap-to-ground distance, autostep dimensions), mirroring
+/// rapier's `CharacterLength`.
+///
+/// Variants:
+/// - `Absolute`: A length in world units.
+/// - `Relative`: A length as a fraction of the character's collider size.
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 pub enum PhysicsLength {
     Absolute(f32),
@@ -167,6 +202,7 @@ pub enum PhysicsLength {
 }
 
 impl PhysicsLength {
+    /// Converts this length to rapier's equivalent `CharacterLength`.
     pub fn to_length(&self) -> CharacterLength {
         match self {
             PhysicsLength::Absolute(length) => 

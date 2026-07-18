@@ -2,6 +2,27 @@ use anarchy::macros::warn;
 use glam::*;
 use rapier3d::{math::{Isometry, UnitVector}, na::{OPoint, Vector3}, prelude::{ColliderBuilder, SharedShape}};
 
+/// Engine-agnostic description of a collision shape, converted to a rapier
+/// `ColliderBuilder`/`SharedShape` via `into_rapier_collider` and
+/// `into_rapier_shared_shape`.
+///
+/// Variants:
+/// - `Sphere`: A ball of the given `radius`.
+/// - `Capsule`: A capsule aligned to the Y axis, with the given `radius` and
+///   `half_height` of its cylindrical section.
+/// - `Cuboid`: A box with the given half-extents (`half_width`,
+///   `half_height`, `half_depth`).
+/// - `Cylinder`: A cylinder aligned to the Y axis, with the given `radius`
+///   and `half_height`.
+/// - `Cone`: A cone aligned to the Y axis, with the given `radius` and
+///   `half_height`.
+/// - `Compound`: Multiple child colliders, each offset by a local
+///   translation and rotation.
+/// - `Voxels`: A voxelized shape made of integer grid `points`, each cell
+///   sized `size`.
+/// - `Mesh`: A convex mesh built from `vertices` and triangle `indices`.
+/// - `Halfspace`: An infinite plane with the given surface `normal`.
+/// - `Empty`: No collision shape; conversion produces `None`.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Collider {
     Sphere { radius: f32 },
@@ -16,6 +37,11 @@ pub enum Collider {
     Empty
 }
 
+/// Error produced while converting a `Collider` to its rapier equivalent.
+///
+/// Variants:
+/// - `FailedToBuildMesh`: rapier rejected the vertices/indices given to
+///   `Collider::Mesh` (e.g. degenerate or non-convex geometry).
 #[derive(Debug)]
 pub enum ColliderError {
     FailedToBuildMesh

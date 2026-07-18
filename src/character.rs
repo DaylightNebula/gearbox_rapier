@@ -3,8 +3,28 @@ use glam::Vec3;
 
 use crate::PhysicsLength;
 
-/// Standard character controller for a `PhysicsObject`.
-/// Must be applied to an entity with a `PhysicsObject`.
+/// Standard character controller for a `PhysicsObject`, backed by rapier's
+/// `KinematicCharacterController`. Must be applied to an entity with a
+/// `PhysicsObject`; `update_engine_side` creates the underlying controller
+/// the first time it sees the pair and moves it every tick using
+/// `target_movement`.
+///
+/// Fields:
+/// - `collider_expansion`: Extra offset added around the character's collider
+///   (rapier's `offset`), or `None` to use rapier's default.
+/// - `slope_config`: Optional min/max slope angles controlling when the
+///   character slides or is allowed to climb; `None` uses rapier's defaults.
+/// - `step_config`: Optional autostep configuration for climbing small
+///   ledges; `None` disables autostepping.
+/// - `snap_to_ground`: Optional max distance used to snap the character to
+///   the ground when just barely leaving it; `None` disables snapping.
+/// - `target_movement`: Desired movement vector for the next physics tick,
+///   set via `set_target_movement`.
+/// - `up`: The character's up direction, set via `set_up`.
+/// - `is_sliding`: Whether the character is currently sliding down a slope,
+///   as reported by `PhysicsEngine` after the last move.
+/// - `is_grounded`: Whether the character is currently touching the ground,
+///   as reported by `PhysicsEngine` after the last move.
 #[derive(Component, Getters, Debug, Clone, Copy)]
 pub struct PhysicsCharacter {
     collider_expansion: Option<PhysicsLength>,
@@ -17,12 +37,29 @@ pub struct PhysicsCharacter {
     is_grounded: bool
 }
 
+/// Slope-handling configuration for a `PhysicsCharacter`, mapped to rapier's
+/// `KinematicCharacterController::min_slope_slide_angle` and
+/// `max_slope_climb_angle`.
+///
+/// Fields:
+/// - `min_slope_angle_rad`: The minimum slope angle, in radians, at which the
+///   character starts sliding.
+/// - `max_slope_angle_rad`: The maximum slope angle, in radians, the
+///   character is allowed to climb.
 #[derive(Getters, Setters, Debug, Clone, Copy)]
 pub struct PhysicsCharacterSlopeConfig {
     min_slope_angle_rad: f32,
     max_slope_angle_rad: f32
 }
 
+/// Autostep configuration for a `PhysicsCharacter`, mapped to rapier's
+/// `CharacterAutostep`.
+///
+/// Fields:
+/// - `max_height`: The maximum height of a step the character can climb.
+/// - `min_width`: The minimum width a step must have to be climbed.
+/// - `include_dynamic_bodies`: Whether dynamic rigidbodies count as steps, in
+///   addition to fixed ones.
 #[derive(Getters, Setters, Debug, Clone, Copy)]
 pub struct PhysicsCharacterStepConfig {
     max_height: PhysicsLength,
