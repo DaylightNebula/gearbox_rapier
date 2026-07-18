@@ -1,0 +1,18 @@
+[package]
+name = "anarchy_rapier"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anarchy = { path = "../anarchy" }
+cell = { path = "../cell" }
+gearbox = { path = "../gearbox" }
+mutual = { version = "1.0" }
+rapier3d = { version = "0.31.0", features = ["simd-stable"] }
+bimap = "0.6.3"
+dashmap = "6.1.0"
+chrono = "0.4.44"
+glam = "0.33.2"
+
+[dev-dependencies]
+skeletal = { path = "../skeletal" }
