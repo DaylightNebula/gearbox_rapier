@@ -1,4 +1,5 @@
-use anarchy::macros::{Component, Getters, Setters};
+use anarchy::Component;
+use getset::{Getters, Setters};
 use glam::Vec3;
 
 use crate::PhysicsLength;
@@ -26,6 +27,8 @@ use crate::PhysicsLength;
 /// - `is_grounded`: Whether the character is currently touching the ground,
 ///   as reported by `PhysicsEngine` after the last move.
 #[derive(Component, Getters, Debug, Clone, Copy)]
+#[getset(get = "pub")]
+#[component(no_serialize)]
 pub struct PhysicsCharacter {
     collider_expansion: Option<PhysicsLength>,
     slope_config: Option<PhysicsCharacterSlopeConfig>,
@@ -47,6 +50,7 @@ pub struct PhysicsCharacter {
 /// - `max_slope_angle_rad`: The maximum slope angle, in radians, the
 ///   character is allowed to climb.
 #[derive(Getters, Setters, Debug, Clone, Copy)]
+#[getset(get = "pub", set = "pub")]
 pub struct PhysicsCharacterSlopeConfig {
     min_slope_angle_rad: f32,
     max_slope_angle_rad: f32
@@ -61,6 +65,7 @@ pub struct PhysicsCharacterSlopeConfig {
 /// - `include_dynamic_bodies`: Whether dynamic rigidbodies count as steps, in
 ///   addition to fixed ones.
 #[derive(Getters, Setters, Debug, Clone, Copy)]
+#[getset(get = "pub", set = "pub")]
 pub struct PhysicsCharacterStepConfig {
     max_height: PhysicsLength,
     min_width: PhysicsLength,

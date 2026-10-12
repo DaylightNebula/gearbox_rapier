@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
-use anarchy::macros::{Component, Getters};
+use anarchy::Component;
+use getset::Getters;
 use glam::Vec3;
 use mutual::{CowData, SharedList, SharedMap};
 use rapier3d::control::CharacterLength;
@@ -35,6 +36,8 @@ use crate::{Collider, NEXT_PHYSICS_WORLD_ID, PhysicsWorldID, RigidBodySnapshot};
 /// - `mass`: The mass passed to rapier's collider builder.
 /// - `is_fixed`: Whether this object is a fixed (immovable) or dynamic rigidbody.
 #[derive(Component, Getters)]
+#[getset(get = "pub")]
+#[component(no_serialize)]
 pub struct PhysicsObject {
     physics_id: PhysicsWorldID,
     last_snapshot: CowData<Option<RigidBodySnapshot>>,
@@ -49,6 +52,16 @@ pub struct PhysicsObject {
     using_empty_collider: AtomicBool,
     mass: CowData<f32>,
     is_fixed: CowData<bool>
+}
+
+impl std::fmt::Debug for PhysicsObject {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PhysicsObject")
+            .field("physics_id", &self.physics_id)
+            .field("mass", &*self.mass.get_ref())
+            .field("is_fixed", &*self.is_fixed.get_ref())
+            .finish_non_exhaustive()
+    }
 }
 
 impl PhysicsObject {

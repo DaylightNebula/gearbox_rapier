@@ -1,10 +1,10 @@
 use std::sync::atomic::Ordering;
 
-use anarchy::{DeltaTime, Query, Res, ResMut, macros::{system, warn}};
-use cell::{App, Plugin};
-use gearbox::Transform;
+use anarchy::{Query, Res, ResMut, SystemPin, pin};
+use gearbox::{App, Plugin, Transform, UpdateDeltaTime};
+use log::warn;
 use glam::EulerRot;
-use mutual::{CowData, SharedData};
+use mutual::CowData;
 use rapier3d::{control::{CharacterAutostep, KinematicCharacterController}, na::{Unit, Vector3}, prelude::{QueryFilter, RigidBodyBuilder}};
 
 pub mod character;
@@ -20,7 +20,7 @@ pub use engine::*;
 pub use queries::*;
 pub use rapier3d as rapier3d;
 
-/// `cell::Plugin` that wires `PhysicsEngine` and `PhysicsQueries` into the app as
+/// `gearbox::Plugin` that wires `PhysicsEngine` and `PhysicsQueries` into the app as
 /// resources and registers `update_engine_side` to run every tick, keeping rapier
 /// rigidbodies, colliders, and character controllers in sync with `PhysicsObject`
 /// and `PhysicsCharacter` components.
@@ -32,7 +32,7 @@ impl Plugin for PhysicsPlugin {
 
         app.add_resource(PhysicsEngine::new())
             .add_resource(PhysicsQueries::default())
-            .on_update(update_engine_side)
+            .on_update_with(update_engine_side, pin(SystemPin::End))
     }
 }
 
@@ -42,17 +42,16 @@ impl Plugin for PhysicsPlugin {
 /// kinematic characters, writes rapier's resulting transform back onto the ECS
 /// `Transform`, removes bodies for entities that no longer exist, executes any
 /// pending `PhysicsQueries`, and steps the `PhysicsEngine`.
-#[system(std::i32::MIN)]
 fn update_engine_side(
-    objects: Query<(&mut Transform, &PhysicsObject, Option<&mut PhysicsCharacter>)>,
-    engine: ResMut<PhysicsEngine>,
+    mut objects: Query<(&'static mut Transform, &'static PhysicsObject, Option<&'static mut PhysicsCharacter>)>,
+    mut engine: ResMut<PhysicsEngine>,
     queries: Res<PhysicsQueries>,
-    delta_time: Res<DeltaTime>
+    delta_time: Res<UpdateDeltaTime>
 ) {
-    let delta_time = *delta_time.get_schedule_local(schedule_id).lock_ref();
+    let delta_time = delta_time.0;
     let mut bodies = engine.rigid_body_map.clone();
 
-    for (entity_id, _mask, (mut transform, object, character)) in objects.iter_with_id() {
+    while let Some((entity_id, (mut transform, object, character))) = objects.next().unwrap() {
         let force_refresh = object.refresh_rapier().load(Ordering::Acquire);
 
         if let Some(mut character) = character {
@@ -77,8 +76,8 @@ fn update_engine_side(
                 kinematic.up = up;
 
                 // create shape and save
-                let Ok(shape) = object.collider().get_ref().into_rapier_shared_shape() else { return Ok(()) };
-                let Some(shape) = shape else { object.using_empty_collider().store(true, Ordering::Release); return Ok(()) };
+                let Ok(shape) = object.collider().get_ref().into_rapier_shared_shape() else { return };
+                let Some(shape) = shape else { object.using_empty_collider().store(true, Ordering::Release); return };
                 let shape = shape.0.clone_dyn();
                 if force_refresh { engine.remove(*object.physics_id()); }
                 engine.insert_character(*object.physics_id(), kinematic, shape);

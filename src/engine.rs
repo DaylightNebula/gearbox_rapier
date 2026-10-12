@@ -1,6 +1,6 @@
 use std::sync::atomic::AtomicU32;
 
-use anarchy::{EntityID, macros::Resource};
+use anarchy::{EntityID, Resource};
 use bimap::BiMap;
 use glam::{Quat, Vec3};
 use rapier3d::{control::KinematicCharacterController, na::{Isometry, Quaternion, Translation, UnitQuaternion, Vector3}, parry::utils::hashmap::HashMap, prelude::{CCDSolver, Collider, ColliderHandle, ColliderSet, DefaultBroadPhase, ImpulseJointSet, IntegrationParameters, IslandManager, MultibodyJointSet, NarrowPhase, PhysicsPipeline, QueryFilter, QueryPipeline, RigidBody, RigidBodyHandle, RigidBodySet, Shape}};
@@ -36,6 +36,16 @@ pub struct PhysicsEngine {
     pub(crate) impulse_joint_set: ImpulseJointSet,
     pub(crate) multibody_joint_set: MultibodyJointSet,
     pub(crate) ccd_solver: CCDSolver
+}
+
+impl std::fmt::Debug for PhysicsEngine {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PhysicsEngine")
+            .field("rigid_bodies", &self.rigid_body_set.len())
+            .field("colliders", &self.collider_set.len())
+            .field("characters", &self.controllers.len())
+            .finish_non_exhaustive()
+    }
 }
 
 /// Outcome of moving a kinematic character controller one tick, returned by

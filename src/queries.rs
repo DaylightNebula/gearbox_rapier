@@ -1,6 +1,7 @@
 use std::any::Any;
 
-use anarchy::{EntityID, macros::{Getters, Resource}};
+use anarchy::{EntityID, Resource};
+use getset::Getters;
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
 use glam::*;
@@ -36,6 +37,7 @@ pub enum PhysicsQuery {
 /// - hit_position_normal: An option to a tuple that contains the position and normal of the intersection.
 /// - entity_id: The ID of the entity hit.
 #[derive(Getters, Clone, Copy, PartialEq)]
+#[getset(get = "pub")]
 pub struct PhysicsQueryResult {
     pub hit_position_normal: Option<(Vec3, Vec3)>,
     pub entity_id: EntityID
@@ -67,15 +69,14 @@ struct PhysicsStoredResult {
 /// be consumed by `consume_query` after it is complete.
 /// 
 /// Heres an example:
-/// ```rust
-/// #[system]
+/// ```rust,ignore
 /// fn update(
 ///     input: Res<Inputs>,
 ///     queries: Res<PhysicsQueries>,
-///     camera: Query<(&Transform, &CameraView)>
+///     mut camera: Query<(&'static Transform, &'static CameraView)>
 /// ) {
 ///     if input.is_pressed(Button::MouseLeft) {
-///         let Some((camera_transform, camera)) = camera.as_iter().next() else { return };
+///         let Some((_id, (camera_transform, camera))) = camera.next().unwrap() else { return };
 /// 
 ///         let (eye, dir) = get_camera_ray( ... );
 /// 
@@ -86,7 +87,7 @@ struct PhysicsStoredResult {
 ///         let Some(result) = results.into_iter().next() else { return };
 ///         let Some(position_normal) = result.hit_position_normal else { return };
 /// 
-///         info!("Physics hit {} {}", position_normal.0, position_normal.1);
+///         log::info!("Physics hit {} {}", position_normal.0, position_normal.1);
 ///     }
 /// }
 /// ```
@@ -94,6 +95,12 @@ struct PhysicsStoredResult {
 pub struct PhysicsQueries {
     new_queries: SharedList<PhysicsQueryInput>,
     results: DashMap<String, PhysicsStoredResult>
+}
+
+impl std::fmt::Debug for PhysicsQueries {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PhysicsQueries").field("results", &self.results.len()).finish_non_exhaustive()
+    }
 }
 
 impl PhysicsQueries {
